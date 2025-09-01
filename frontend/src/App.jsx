@@ -10,11 +10,15 @@ export default function App() {
   // State for Create Form
   const [title, setTitle] = useState("");
   const [dueDate, setDueDate] = useState("");
+  const [category, setCategory] = useState("");
+  const [estimatedHours, setEstimatedHours] = useState("");
   const [saving, setSaving] = useState(false);
   const [editId, setEditId] = useState(null);
   const [editTitle, setEditTitle] = useState("");
   const [editDueDate, setEditDueDate] = useState("");
-  const [updating, setUpdating] = useState(false); 
+  const [editCategory, setEditCategory] = useState("");
+  const [editEstimatedHours, setEditEstimatedHours] = useState("");
+  const [updating, setUpdating] = useState(false);
   const [toggleBusyId, setToggleBusyId] = useState(null);
   const [deleteBusyId, setDeleteBusyId] = useState(null);
 
@@ -32,15 +36,29 @@ export default function App() {
     }
   }
 
-  useEffect(() => {loadTasks();}, []);
+  useEffect(() => { loadTasks(); }, []);
 
   // Handle Create
-  async function handleAdd(e){
+  async function handleAdd(e) {
     e.preventDefault();
-    if(!title.trim()){
+    if (!title.trim()) {
       setError("Title is required.");
       return;
     }
+
+    if (!category.trim()) {
+      setError("Category is required.");
+      return;
+    }
+
+    if (
+      estimatedHours !== "" &&
+      estimatedHours !== undefined &&
+      (!Number.isInteger(Number(estimatedHours)) || Number(estimatedHours) < 0)
+    ) {
+      setError("Estimated hours input is invalid.");
+      return;
+    } 
 
     try {
       setSaving(true);
@@ -51,11 +69,15 @@ export default function App() {
         title: title.trim(),
         isDone: false,
         dueDate: dueDate || null,
+        category: category.trim(),
+        estimatedHours: parseInt(estimatedHours) || 0,
       });
 
       // Reset form + Refresh List
       setTitle("");
       setDueDate("");
+      setCategory("");
+      setEstimatedHours("");
       await loadTasks();
     } catch (err) {
       setError(err.message || "Failed to create task");
@@ -65,12 +87,12 @@ export default function App() {
   }
 
   // Handle update : toggle task done
-  async function toggleDone(task){
+  async function toggleDone(task) {
     try {
       setError("");
       setToggleBusyId(task.id);
       // Send full object as our API expects the complete entity on PUT
-      await api.updateTask(task.id, {...task, isDone: !task.isDone});
+      await api.updateTask(task.id, { ...task, isDone: !task.isDone });
       await loadTasks();
     } catch (err) {
       setError(err.message || "Failed to update task.")
@@ -85,9 +107,11 @@ export default function App() {
     setEditTitle(task.title);
     const d = task.dueDate ? new Date(task.dueDate) : null;
     const ymd = d
-      ?  `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`
+      ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
       : "";
     setEditDueDate(ymd);
+    setEditCategory(task.category);
+    setEditEstimatedHours(task.estimatedHours);
   }
 
   // Handle update : Cancel edit
@@ -95,12 +119,28 @@ export default function App() {
     setEditId(null);
     setEditTitle("");
     setEditDueDate("");
+    setEditCategory("");
+    setEditEstimatedHours("");
   }
 
   // Handle update : Save edit
   async function saveEdit(originalTask) {
     if (!editTitle.trim()) {
       setError("Title is required.");
+      return;
+    }
+
+    if (!editCategory.trim()) {
+      setError("Category is required.");
+      return;
+    }
+
+    if (
+      editEstimatedHours !== "" &&
+      editEstimatedHours !== undefined &&
+      (!Number.isInteger(Number(editEstimatedHours)) || Number(editEstimatedHours) < 0)
+    ) {
+      setError("Estimated hours input is invalid.");
       return;
     }
 
@@ -111,9 +151,9 @@ export default function App() {
       const payload = {
         ...originalTask,
         title: editTitle.trim(),
-        
-        //Sends null if due date is empty so API accepts it
         dueDate: editDueDate ? editDueDate : null,
+        category: editCategory.trim(),
+        estimatedHours: editEstimatedHours ? parseInt(editEstimatedHours) : 0,
       };
 
       await api.updateTask(originalTask.id, payload);
@@ -127,7 +167,7 @@ export default function App() {
   }
 
   // Handle remove task
-  async function remove(id){
+  async function remove(id) {
     try {
       setError("");
       setDeleteBusyId(id);
@@ -141,7 +181,7 @@ export default function App() {
   }
 
 
-  const sorted = [...tasks].sort((a,b) => {
+  const sorted = [...tasks].sort((a, b) => {
     // Pending first (false < true)
     if (a.isDone !== b.isDone) return a.isDone - b.isDone;
     // Then by due date (nulls last)
@@ -152,46 +192,68 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-100 text-gray-900">
-      <header className="max-w-3xl mx-auto p-6">
-        <h1 className="text-3xl font-bold">Tasks</h1>
+      <header className="max-w-4xl mx-auto p-6">
+        <h1 className="text-4xl font-bold">Tasks</h1>
         <p className="text-gray-600">Create a task and it will appear below</p>
       </header>
 
-      <main className="max-w-3xl mx-auto p-6 space-y-6">
+      <main className="max-w-4xl mx-auto p-6 space-y-6">
         {/* Create Form */}
-        <form 
+        <form
           onSubmit={handleAdd}
           className="bg-white rounded-2xl shadow p-4 flex flex-wrap gap-3 items-end">
-            
-            {/* Title Input */}
-            <div className="flex-1 min-w-56">
-              <label className="block text-sm text-gray-600 mb-1">Title *</label>
-              <input
-                className="w-full rounded-xl border border-gray-300 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Learn CRUD"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-              />
-            </div>
 
-            {/* Date Input */}
-            <div>
-              <label className="block text-sm text-gray-600 mb-1">Due date</label>
-              <input 
-                type="date"
-                className="rounded-xl border border-gray-300 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-              />
-            </div>
+          {/* Title Input */}
+          <div className="flex-1 min-w-106">
+            <label className="block text-sm text-gray-600 mb-1">Title *</label>
+            <input
+              className="w-full rounded-xl border border-gray-300 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Learn CRUD"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+          </div>
 
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={saving}
-              className={`rounded-xl px-4 py-2 text-white ${saving ? "bg-blue-400" : "bg-blue-600 hover:bg-blue-700"}`}>
-                {saving ? "Adding...": "Add"}
-            </button>
+          {/* Date Input */}
+          <div>
+            <label className="block text-sm text-gray-600 mb-1">Due date</label>
+            <input
+              type="date"
+              className="rounded-xl border border-gray-300 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+            />
+          </div>
+
+          {/* Category Input */}
+          <div className="flex-1 min-w-106">
+            <label className="block text-sm text-gray-600 mb-1">Category *</label>
+            <input
+              className="w-full rounded-xl border border-gray-300 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Work, Health, Entertainment..."
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+            />
+          </div>
+
+          {/* Estimated Hours Input */}
+          <div className="flex-1 min-w-16">
+            <label className="block text-sm text-gray-600 mb-1">Estimated Hours</label>
+            <input
+              className="w-full rounded-xl border border-gray-300 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="0+"
+              value={estimatedHours}
+              onChange={(e) => setEstimatedHours(e.target.value)}
+            />
+          </div>
+
+          {/* Submit Button */}
+          <button
+            type="submit"
+            disabled={saving}
+            className={`rounded-xl px-4 py-2 text-white ${saving ? "bg-blue-400" : "bg-blue-600 hover:bg-blue-700"}`}>
+            {saving ? "Adding..." : "Add"}
+          </button>
         </form>
 
         {/* Errors/Loading */}
@@ -220,7 +282,7 @@ export default function App() {
             return (
               <li key={task.id} className="p-4 flex items-center gap-3">
                 {/* Done Checkbox */}
-                <input 
+                <input
                   type="checkbox"
                   className="size-5 accent-blue-600"
                   checked={task.isDone}
@@ -233,34 +295,52 @@ export default function App() {
                 <div className="flex-1">
                   {!isEditing ? (
                     <>
-                      <div className={`font-medium ${task.isDone ? "line-through text-gray-400": ""}`}>
+                      <div className={`font-medium ${task.isDone ? "line-through text-gray-400" : ""}`}>
                         {task.title}
                       </div>
                       {task.dueDate && (
-                        <div className={`text-sm  ${task.isDone ? "line-through text-gray-400": ""}`}>
-                          Due: {new Date(task.dueDate).toLocaleDateString()}
+                        <div className={`text-sm flex ${task.isDone ? "line-through text-gray-400" : ""}`}>
+                          <div className="min-w-50 max-w-50">Due: {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : "No due date"}</div>
+                          <div className="min-w-50 max-w-50">Category: {task.category || "Uncategorized"}</div>
+                          <div className="min-w-50 max-w-50">Estimated Hours: {task.estimatedHours}</div>
                         </div>
                       )}
                     </>
                   ) : (
                     <div className="flex flex-wrap gap-3">
-                      <input  
-                        className="rounded-xl border border-gray-300 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 min-w-56 flex-1"
+                      <input
+                        className="rounded-xl border border-gray-300 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 min-w-36 flex-1"
                         value={editTitle}
                         onChange={(e) => setEditTitle(e.target.value)}
                         placeholder="Title"
                         disabled={updating}
                       />
-                      <input 
+                      <input
                         type="date"
-                        className="rounded-xl border border-gray-300 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500"
+                        className="rounded-xl border border-gray-300 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 min-w-36 flex-1"
                         value={editDueDate}
                         onChange={(e) => setEditDueDate(e.target.value)}
+                        disabled={updating}
+                      />
+                      <input
+                        className="rounded-xl border border-gray-300 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 min-w-36 flex-1"
+                        value={editCategory}
+                        onChange={(e) => setEditCategory(e.target.value)}
+                        placeholder="Category"
+                        disabled={updating}
+                      />
+                      <input
+                        className="rounded-xl border border-gray-300 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 min-w-4 flex-1"
+                        value={editEstimatedHours}
+                        onChange={(e) => setEditEstimatedHours(e.target.value)}
+                        placeholder="Estimated Hours"
                         disabled={updating}
                       />
                     </div>
                   )}
                 </div>
+                
+
 
                 {/* Right side actions : Edit and Delete */}
                 {!isEditing ? (
@@ -268,19 +348,18 @@ export default function App() {
                     <button
                       onClick={() => startEdit(task)}
                       disabled={rowBusy}
-                      className={`rounded-lg px-3 py-1 text-gray-700 ${
-                        rowBusy ? "bg-gray-200 cursor-not-allowed" : "bg-gray-100 hover:bg-gray-200"
-                      }`}
+                      className={`rounded-lg px-3 py-1 text-gray-700 ${rowBusy ? "bg-gray-200 cursor-not-allowed" : "bg-gray-100 hover:bg-gray-200"
+                        }`}
                     >
                       Edit
                     </button>
-                    <button 
+                    <button
                       onClick={() => {
-                        if (confirm(`Delete "${task.title}"?`)) remove(task.id);}}
+                        if (confirm(`Delete "${task.title}"?`)) remove(task.id);
+                      }}
                       disabled={rowBusy}
-                      className={`rounded-lg px-3 py-1 text-gray-700 ${
-                        rowBusy ? "bg-gray-200 cursor-not-allowed" : "bg-gray-100 hover:bg-gray-200"
-                      }`}
+                      className={`rounded-lg px-3 py-1 text-gray-700 ${rowBusy ? "bg-gray-200 cursor-not-allowed" : "bg-gray-100 hover:bg-gray-200"
+                        }`}
                       aria-label={`Delete ${task.title}`}
                     >
                       {deleteBusyId === task.id ? "Deleting" : "Delete"}

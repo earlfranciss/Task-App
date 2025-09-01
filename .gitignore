@@ -26,3 +26,5 @@ backend/*.suo
 # ---- Build artifacts (general) ----
 **/coverage/
 **/*.tmp
+
+.fake
