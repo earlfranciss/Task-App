@@ -11,19 +11,15 @@ It enables users to **create, update, delete, and track tasks**, making producti
 - ⚡ **Responsive frontend** powered by React.js  
 
 ## 🏗️ Tech Stack
-- **Frontend:** React.js  
+- **Frontend:** React.js, Tailwind CSS
 - **Backend:** ASP .NET Core (Entity Framework)  
 - **Database:** MS SQL Server  
-- **Other Tools:** Git, Figma  
+- **Other Tools:** Git, Figma
+  
+---
 
 ## 🎯 Objective
 The Task App was built as a practice project to strengthen **full-stack development skills**, particularly focusing on **React.js frontend integration with ASP .NET Core backend**.  
-
-# A learning project built to practice **full-stack development** using:
-
-- **Backend:** C# ASP.NET + EF Core (SQL Server)
-- **Frontend:** React (Vite) + Tailwind CSS v4
-- **Database:** SQL Server Express / LocalDB
 
 ---
 
