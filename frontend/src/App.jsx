@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { api } from "./api";
+import ExportButton from "../components/ExportButton";
 
 export default function App() {
   // State for List
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [errors, setErrors] = useState([]);
 
   // State for Create Form
   const [title, setTitle] = useState("");
@@ -25,12 +26,12 @@ export default function App() {
   // Load Tasks from API
   async function loadTasks() {
     try {
-      setError("");
+      setErrors([]);
       setLoading(true);
       const data = await api.getTasks();
       setTasks(data);
     } catch (err) {
-      setError(err.message || "Failed to load tasks.");
+      setErrors(err.message || "Failed to load tasks.");
     } finally {
       setLoading(false);
     }
@@ -41,28 +42,13 @@ export default function App() {
   // Handle Create
   async function handleAdd(e) {
     e.preventDefault();
-    if (!title.trim()) {
-      setError("Title is required.");
+    if (checkErrors(title, category, estimatedHours)) {
       return;
     }
-
-    if (!category.trim()) {
-      setError("Category is required.");
-      return;
-    }
-
-    if (
-      estimatedHours !== "" &&
-      estimatedHours !== undefined &&
-      (!Number.isInteger(Number(estimatedHours)) || Number(estimatedHours) < 0)
-    ) {
-      setError("Estimated hours input is invalid.");
-      return;
-    } 
 
     try {
       setSaving(true);
-      setError("");
+      setErrors([]);
 
       // Send null if no date picked; the API accepts either ISO date or null
       await api.createTask({
@@ -72,15 +58,18 @@ export default function App() {
         category: category.trim(),
         estimatedHours: parseInt(estimatedHours) || 0,
       });
-
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      
       // Reset form + Refresh List
       setTitle("");
       setDueDate("");
       setCategory("");
       setEstimatedHours("");
       await loadTasks();
+
+      
     } catch (err) {
-      setError(err.message || "Failed to create task");
+      setErrors(err.message || "Failed to create task");
     } finally {
       setSaving(false);
     }
@@ -89,13 +78,13 @@ export default function App() {
   // Handle update : toggle task done
   async function toggleDone(task) {
     try {
-      setError("");
+      setErrors([]);
       setToggleBusyId(task.id);
       // Send full object as our API expects the complete entity on PUT
       await api.updateTask(task.id, { ...task, isDone: !task.isDone });
       await loadTasks();
     } catch (err) {
-      setError(err.message || "Failed to update task.")
+      setErrors(err.message || "Failed to update task.")
     } finally {
       setToggleBusyId(null);
     }
@@ -125,28 +114,13 @@ export default function App() {
 
   // Handle update : Save edit
   async function saveEdit(originalTask) {
-    if (!editTitle.trim()) {
-      setError("Title is required.");
-      return;
-    }
-
-    if (!editCategory.trim()) {
-      setError("Category is required.");
-      return;
-    }
-
-    if (
-      editEstimatedHours !== "" &&
-      editEstimatedHours !== undefined &&
-      (!Number.isInteger(Number(editEstimatedHours)) || Number(editEstimatedHours) < 0)
-    ) {
-      setError("Estimated hours input is invalid.");
+    if (checkErrors(editTitle, editCategory, editEstimatedHours)) {
       return;
     }
 
     try {
       setUpdating(true);
-      setError("");
+      setErrors([]);
 
       const payload = {
         ...originalTask,
@@ -160,7 +134,7 @@ export default function App() {
       cancelEdit();
       await loadTasks();
     } catch (err) {
-      setError(err.message || "Failed to update task.");
+      setErrors(err.message || "Failed to update task.");
     } finally {
       setUpdating(false);
     }
@@ -169,17 +143,43 @@ export default function App() {
   // Handle remove task
   async function remove(id) {
     try {
-      setError("");
+      setErrors([]);
       setDeleteBusyId(id);
       await api.deleteTask(id);
+      await new Promise((resolve) => setTimeout(resolve, 2000));
       await loadTasks();
+
     } catch (err) {
-      setError(err.message || "Failed to delete  task.")
+      setErrors(err.message || "Failed to delete  task.")
     } finally {
       setDeleteBusyId(null);
     }
   }
 
+  function checkErrors(title, category, estimatedHours) {
+    const errorList = [];
+    if (!title.trim()) {
+      errorList.push("Title is required.");
+    }
+
+    if (!category.trim()) {
+      errorList.push("Category is required.");
+
+    }
+
+    if (
+      estimatedHours !== "" &&
+      estimatedHours !== undefined &&
+      (!Number.isInteger(Number(estimatedHours)) || Number(estimatedHours) < 0)
+    ) {
+      errorList.push("Estimated hours input is invalid.");
+    }
+
+    if (errorList.length > 0) {
+      setErrors(errorList);
+      return true;
+    }
+  }
 
   const sorted = [...tasks].sort((a, b) => {
     // Pending first (false < true)
@@ -192,10 +192,15 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-100 text-gray-900">
-      <header className="max-w-4xl mx-auto p-6">
-        <h1 className="text-4xl font-bold">Tasks</h1>
-        <p className="text-gray-600">Create a task and it will appear below</p>
+      <header className="flex max-w-4xl mx-auto p-6">
+        <div className="flex-1">
+          <h1 className="text-4xl font-bold">Tasks</h1>
+          <p className="text-gray-600">Create a task and it will appear below</p>
+        </div>
+
+        <ExportButton tasks={tasks} />
       </header>
+
 
       <main className="max-w-4xl mx-auto p-6 space-y-6">
         {/* Create Form */}
@@ -257,9 +262,11 @@ export default function App() {
         </form>
 
         {/* Errors/Loading */}
-        {error && (
+        {errors.length > 0 && (
           <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-3">
-            {error}
+            {errors.map((err, i) => (
+              <div key={i}>• {err}</div>
+            ))}
           </div>
         )}
         {loading && <div className="text-gray-600">Loading...</div>}
@@ -339,7 +346,7 @@ export default function App() {
                     </div>
                   )}
                 </div>
-                
+
 
 
                 {/* Right side actions : Edit and Delete */}
@@ -362,7 +369,7 @@ export default function App() {
                         }`}
                       aria-label={`Delete ${task.title}`}
                     >
-                      {deleteBusyId === task.id ? "Deleting" : "Delete"}
+                      {deleteBusyId === task.id ? "Deleting..." : "Delete"}
                     </button>
                   </div>
                 ) : (
