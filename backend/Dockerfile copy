@@ -1,0 +1,42 @@
+# Uses node version 22 as our base image
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+
+# Goes to the app directory
+WORKDIR /src
+
+# Copy package.json and package-lock.json
+COPY *.csproj .
+
+# # Install app dependencies
+# # RUN keyword happens when the image is BUILDING
+RUN dotnet restore
+
+# Copy the rest of your code into the container
+COPY . .
+
+RUN dotnet publish -c Release -o /app
+FROM mcr.microsoft.com/dotnet/aspnet:9.0
+WORKDIR /app
+COPY --from=build /app .
+
+# Set port environment variable
+ENV ASPNETCORE_URLS=http://+:5006
+
+# Expose the port so our computer can access it
+# Tells Docker to use this port
+EXPOSE 5006
+
+# Run the app
+# CMD keyword is used to START the container AFTER building
+# !Important: You can only have one CMD command in a dockerfile
+CMD ["dotnet", "TaskApi.dll"]
+
+# Build Docker
+# In terminal, use "docker build -t (tag or name) docker_example . (destination - current dir)"
+
+# Run the container
+# docker run -p (port forwarding) 9000:9000 (Computer Port:Container Port) docker_example
+
+cd backend
+docker build -t task-backend .
+docker run -p 5006:5006 task-backend

@@ -31,7 +31,7 @@ export default function App() {
       const data = await api.getTasks();
       setTasks(data);
     } catch (err) {
-      setErrors(err.message || "Failed to load tasks.");
+      setErrors([err.message || "Failed to load tasks."]);
     } finally {
       setLoading(false);
     }
